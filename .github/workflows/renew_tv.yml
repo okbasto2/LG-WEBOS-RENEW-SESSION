@@ -12,5 +12,5 @@ jobs:
     steps:
       - name: Ping LG Developer Server Quietly
         run: |
-          curl -s -X GET "https://lge.com{{ secrets.LG_SESSION_TOKEN }}"
+          curl -s -X GET "https://developer.lge.com/secure/ResetDevModeSession.dev?sessionToken={{ secrets.LG_SESSION_TOKEN }}"
           echo "Token renewal signal sent successfully to LG API."
