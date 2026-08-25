@@ -11,10 +11,10 @@ jobs:
       - name: SSH to LG TV and Send Telegram Notification
         env:
           SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
-          PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
-          HOST: ${{ secrets.ROUTER_HOST }}
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PASSPHRASE: ${{ secrets.PASSPHRASE }}
+          HOST: ${{ secrets.HOST }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           mkdir -p ~/.ssh
 
