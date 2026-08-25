@@ -2,7 +2,7 @@ name: LG TV SSH & IP Report
 
 on:
   schedule:
-    - cron: '0 8 * * *' # Runs daily at 08:00 UTC
+    - cron: '0 8 * * *'
   workflow_dispatch:
 
 jobs:
@@ -12,21 +12,23 @@ jobs:
     steps:
       - name: SSH to LG TV and Send Telegram Notification
         env:
-          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
           PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           HOST: ${{ secrets.ROUTER_HOST }}
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # 1. Prepare SSH directory & key file
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/collo_TV_webos
+
+          # 1. Decode key cleanly and ensure trailing newline + strict permissions
+          echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/collo_TV_webos
+          echo "" >> ~/.ssh/collo_TV_webos
           chmod 600 ~/.ssh/collo_TV_webos
 
           # 2. Write SSH Config
-          cat << 'EOF' > ~/.ssh/config
+          cat << EOF > ~/.ssh/config
           Host lgtv
-              HostName ${{ secrets.ROUTER_HOST }}
+              HostName ${HOST}
               User prisoner
               Port 9922
               IdentityFile ~/.ssh/collo_TV_webos
@@ -36,34 +38,25 @@ jobs:
               PubkeyAcceptedKeyTypes +ssh-rsa
           EOF
 
-          # 3. Supply passphrase to ssh-agent non-interactively
+          # 3. Handle Passphrase via askpass helper
           eval $(ssh-agent -s)
           
-          # Create temporary askpass helper script
-          echo -e '#!/bin/sh\necho "$PASSPHRASE"' > ~/.ssh/askpass.sh
+          cat << 'EOF' > ~/.ssh/askpass.sh
+          #!/bin/sh
+          echo "$PASSPHRASE"
+          EOF
           chmod +x ~/.ssh/askpass.sh
-          
+
           DISPLAY=None SSH_ASKPASS=~/.ssh/askpass.sh ssh-add ~/.ssh/collo_TV_webos < /dev/null
 
-          # 4. SSH into TV, fetch public IP, and renew session token
+          # 4. Fetch Public IP from TV
           TV_PUBLIC_IP=$(ssh lgtv "curl -s https://api.ipify.org")
-          SESSION_TOKEN=$(ssh lgtv "cat /var/luna/preferences/devmode_enabled" 2>/dev/null || echo "")
 
-          # 5. Extend Dev Mode session if token exists
-          if [ -n "$SESSION_TOKEN" ]; then
-            curl -s "https://developer.lge.com/secure/ResetDevModeSession.dev?sessionToken=${SESSION_TOKEN}" > /dev/null
-            DEV_STATUS="Extended"
-          else
-            DEV_STATUS="Could not read token"
-          fi
-
-          # 6. Format Telegram message
+          # 5. Send Telegram notification
           MSG="📺 *LG TV Daily Status*
           • *Public IP:* \`${TV_PUBLIC_IP}\`
-          • *Dev Mode:* ${DEV_STATUS}
           • *Host:* \`${HOST}\`"
 
-          # 7. Dispatch to Telegram
           curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             -d "chat_id=${CHAT_ID}" \
             -d "text=${MSG}" \
