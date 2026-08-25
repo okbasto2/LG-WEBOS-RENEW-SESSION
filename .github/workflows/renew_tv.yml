@@ -1,8 +1,6 @@
 name: LG TV SSH & IP Report
 
 on:
-  schedule:
-    - cron: '0 8 * * *'
   workflow_dispatch:
 
 jobs:
@@ -20,12 +18,12 @@ jobs:
         run: |
           mkdir -p ~/.ssh
 
-          # 1. Decode key cleanly and ensure trailing newline + strict permissions
+          echo "==> Decoding SSH Key..."
           echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/collo_TV_webos
           echo "" >> ~/.ssh/collo_TV_webos
           chmod 600 ~/.ssh/collo_TV_webos
 
-          # 2. Write SSH Config
+          echo "==> Configuring SSH..."
           cat << EOF > ~/.ssh/config
           Host lgtv
               HostName ${HOST}
@@ -36,11 +34,12 @@ jobs:
               HostKeyAlgorithms +ssh-rsa
               StrictHostKeyChecking no
               PubkeyAcceptedKeyTypes +ssh-rsa
+              ConnectTimeout 15
           EOF
 
-          # 3. Handle Passphrase via askpass helper
+          echo "==> Setting up ssh-agent and passphrase..."
           eval $(ssh-agent -s)
-          
+
           cat << 'EOF' > ~/.ssh/askpass.sh
           #!/bin/sh
           echo "$PASSPHRASE"
@@ -49,10 +48,13 @@ jobs:
 
           DISPLAY=None SSH_ASKPASS=~/.ssh/askpass.sh ssh-add ~/.ssh/collo_TV_webos < /dev/null
 
-          # 4. Fetch Public IP from TV
-          TV_PUBLIC_IP=$(ssh lgtv "curl -s https://api.ipify.org")
+          echo "==> Testing SSH connection to ${HOST}:9922..."
+          # -v prints full connection handshake to pinpoint errors
+          TV_PUBLIC_IP=$(ssh -v lgtv "curl -s https://api.ipify.org")
 
-          # 5. Send Telegram notification
+          echo "==> TV Public IP retrieved: $TV_PUBLIC_IP"
+
+          echo "==> Sending Telegram notification..."
           MSG="📺 *LG TV Daily Status*
           • *Public IP:* \`${TV_PUBLIC_IP}\`
           • *Host:* \`${HOST}\`"
@@ -61,3 +63,5 @@ jobs:
             -d "chat_id=${CHAT_ID}" \
             -d "text=${MSG}" \
             -d "parse_mode=Markdown" > /dev/null
+
+          echo "==> Done!"
