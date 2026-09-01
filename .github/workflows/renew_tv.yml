@@ -1,7 +1,8 @@
 name: LG TV SSH & IP Report
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 21 * * *'
 
 jobs:
   report-ip:
