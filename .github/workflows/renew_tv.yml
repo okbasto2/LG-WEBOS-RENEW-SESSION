@@ -51,7 +51,7 @@ jobs:
 
           echo "==> Testing SSH connection to ${HOST}:9922..."
           # -v prints full connection handshake to pinpoint errors
-          TV_PUBLIC_IP=$(ssh -v lgtv "curl -s https://api.ipify.org")
+          TV_PUBLIC_IP=$(ssh -v lgtv "curl -sk https://api.ipify.org")
 
           echo "==> TV Public IP retrieved: $TV_PUBLIC_IP"
 
